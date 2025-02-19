@@ -2,6 +2,8 @@
 
 import React from "react";
 import { createContext, useContext, useState, type ReactNode } from "react";
+import { useGamificationStore } from "@/lib/stores/gamification-store";
+import { useFocusSession } from "@/lib/focus-session-context";
 
 export interface Task {
   id: string;
@@ -75,6 +77,8 @@ export function useTaskContext() {
 
 export function TaskProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const completeTask = useGamificationStore((state) => state.completeTask);
+  const { isInFocusSession } = useFocusSession();
 
   const addTask = (
     title: string,
@@ -99,6 +103,12 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       prevTasks.map((task) => {
         if (task.id === taskId) {
           const newCompleted = !task.completed;
+
+          // Award gamification points if task is being completed
+          if (newCompleted) {
+            completeTask(isInFocusSession);
+          }
+
           // Also toggle all subtasks
           if (task.isSubtask === false) {
             const subtaskIds = prevTasks
@@ -124,12 +134,19 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         }
         // Update subtasks if parent is toggled
         if (task.parentId === taskId) {
+          const newCompleted = !task.completed;
+
+          // Award gamification points if subtask is being completed
+          if (newCompleted) {
+            completeTask(isInFocusSession);
+          }
+
           return {
             ...task,
-            completed: !task.completed,
+            completed: newCompleted,
             microSteps: task.microSteps.map((step) => ({
               ...step,
-              completed: !task.completed,
+              completed: newCompleted,
             })),
           };
         }
@@ -148,6 +165,12 @@ export function TaskProvider({ children }: { children: ReactNode }) {
               : step
           );
           const allCompleted = newMicroSteps.every((step) => step.completed);
+
+          // Award gamification points if all microsteps are completed
+          if (allCompleted && !task.completed) {
+            completeTask(isInFocusSession);
+          }
+
           return {
             ...task,
             completed: allCompleted,

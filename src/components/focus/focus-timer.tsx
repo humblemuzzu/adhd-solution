@@ -10,14 +10,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Play, Pause, StopCircle } from "lucide-react";
+import { Play, Pause, StopCircle, Maximize2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useGamificationStore } from "@/lib/stores/gamification-store";
+import { useFocusSession } from "@/lib/focus-session-context";
 
-export function FocusTimer() {
+interface FocusTimerProps {
+  variant?: "default" | "mini";
+  className?: string;
+}
+
+export function FocusTimer({ variant = "default", className }: FocusTimerProps) {
   const [isActive, setIsActive] = React.useState(false);
   const [isPaused, setIsPaused] = React.useState(false);
   const [selectedDuration, setSelectedDuration] = React.useState("15");
   const [timeLeft, setTimeLeft] = React.useState(15 * 60);
-  const timerRef = React.useRef<NodeJS.Timeout>();
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const timerRef = React.useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const completeFocusSession = useGamificationStore((state) => state.completeFocusSession);
+  const { setIsInFocusSession } = useFocusSession();
 
   const startTimer = () => {
     if (timerRef.current) {
@@ -27,6 +38,7 @@ export function FocusTimer() {
     setIsActive(true);
     setIsPaused(false);
     setTimeLeft(parseInt(selectedDuration) * 60);
+    setIsInFocusSession(true);
 
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
@@ -34,6 +46,9 @@ export function FocusTimer() {
           clearInterval(timerRef.current);
           setIsActive(false);
           setIsPaused(false);
+          setIsInFocusSession(false);
+          // Award gamification points for completing a focus session
+          completeFocusSession();
           return parseInt(selectedDuration) * 60;
         }
         return prev - 1;
@@ -46,16 +61,21 @@ export function FocusTimer() {
       clearInterval(timerRef.current);
     }
     setIsPaused(true);
+    setIsInFocusSession(false);
   };
 
   const resumeTimer = () => {
     setIsPaused(false);
+    setIsInFocusSession(true);
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timerRef.current);
           setIsActive(false);
           setIsPaused(false);
+          setIsInFocusSession(false);
+          // Award gamification points for completing a focus session
+          completeFocusSession();
           return parseInt(selectedDuration) * 60;
         }
         return prev - 1;
@@ -69,6 +89,7 @@ export function FocusTimer() {
     }
     setIsActive(false);
     setIsPaused(false);
+    setIsInFocusSession(false);
     setTimeLeft(parseInt(selectedDuration) * 60);
   };
 
@@ -83,11 +104,103 @@ export function FocusTimer() {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      setIsInFocusSession(false);
     };
-  }, []);
+  }, [setIsInFocusSession]);
+
+  if (variant === "mini") {
+    return (
+      <Card className={cn(
+        "transition-all duration-300",
+        {
+          "w-[400px]": isExpanded,
+          "w-[200px]": !isExpanded
+        },
+        className
+      )}>
+        <div className="p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">
+              {isActive ? formatTime(timeLeft) : "Focus Timer"}
+            </h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setIsExpanded(!isExpanded)}
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {isExpanded && !isActive && (
+            <Select
+              value={selectedDuration}
+              onValueChange={setSelectedDuration}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Duration" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 minutes</SelectItem>
+                <SelectItem value="10">10 minutes</SelectItem>
+                <SelectItem value="15">15 minutes</SelectItem>
+                <SelectItem value="20">20 minutes</SelectItem>
+                <SelectItem value="30">30 minutes</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
+          <div className="flex justify-end space-x-2">
+            {!isActive ? (
+              <Button
+                size="sm"
+                onClick={startTimer}
+                className="shadow hover:shadow-md transition-shadow"
+              >
+                <Play className="h-4 w-4 mr-1" />
+                Start
+              </Button>
+            ) : (
+              <>
+                {isPaused ? (
+                  <Button
+                    size="sm"
+                    onClick={resumeTimer}
+                    className="shadow hover:shadow-md transition-shadow"
+                  >
+                    <Play className="h-4 w-4 mr-1" />
+                    Resume
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={pauseTimer}
+                    className="shadow hover:shadow-md transition-shadow"
+                  >
+                    <Pause className="h-4 w-4 mr-1" />
+                    Pause
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={stopTimer}
+                  className="shadow hover:shadow-md transition-shadow"
+                >
+                  <StopCircle className="h-4 w-4 mr-1" />
+                  Stop
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
-    <Card className="max-w-2xl mx-auto">
+    <Card className={cn("max-w-2xl mx-auto", className)}>
       <div className="p-8 text-center space-y-8">
         <div className="space-y-2">
           <h2 className="text-4xl font-bold tracking-tight">

@@ -2,23 +2,28 @@
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, Plus } from "lucide-react";
 import { type Task } from "@/lib/task-context";
+import { Input } from "@/components/ui/input";
 
 interface TaskListProps {
   tasks: Task[];
-  onTaskToggle: (taskId: string) => void;
-  onMicroStepToggle: (taskId: string, microStepId: string) => void;
+  onToggleTask: (taskId: string) => void;
+  onToggleMicroStep: (taskId: string, microStepId: string) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
+  onAddMicroStep: (taskId: string, title: string) => void;
+  onDeleteMicroStep: (taskId: string, microStepId: string) => void;
 }
 
 export function TaskList({
   tasks,
-  onTaskToggle,
-  onMicroStepToggle,
+  onToggleTask,
+  onToggleMicroStep,
   onEditTask,
   onDeleteTask,
+  onAddMicroStep,
+  onDeleteMicroStep,
 }: TaskListProps) {
   // Group tasks by parent
   const mainTasks = tasks.filter((task) => !task.isSubtask);
@@ -41,7 +46,7 @@ export function TaskList({
         <Checkbox
           id={task.id}
           checked={task.completed}
-          onCheckedChange={() => onTaskToggle(task.id)}
+          onCheckedChange={() => onToggleTask(task.id)}
           className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
         />
         <label
@@ -82,25 +87,58 @@ export function TaskList({
           {task.microSteps.map((step) => (
             <div
               key={step.id}
-              className="flex items-center space-x-2 p-1.5 rounded-md hover:bg-muted/30 transition-colors"
+              className="group flex items-center space-x-2 p-1.5 rounded-md hover:bg-muted/30 transition-colors"
             >
               <Checkbox
                 id={step.id}
                 checked={step.completed}
-                onCheckedChange={() => onMicroStepToggle(task.id, step.id)}
+                onCheckedChange={() => onToggleMicroStep(task.id, step.id)}
                 className="data-[state=checked]:bg-primary/80 data-[state=checked]:text-primary-foreground"
               />
               <label
                 htmlFor={step.id}
-                className={`text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${step.completed ? "line-through text-muted-foreground" : ""
+                className={`flex-1 text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${step.completed ? "line-through text-muted-foreground" : ""
                   }`}
               >
                 {step.title}
               </label>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => onDeleteMicroStep(task.id, step.id)}
+              >
+                <Trash2 className="h-3 w-3" />
+                <span className="sr-only">Delete micro-step</span>
+              </Button>
             </div>
           ))}
         </div>
       )}
+
+      {/* Add micro-step input */}
+      <div className="ml-8 opacity-0 group-hover:opacity-100 transition-opacity">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const input = e.currentTarget.querySelector('input');
+            if (input && input.value.trim()) {
+              onAddMicroStep(task.id, input.value.trim());
+              input.value = '';
+            }
+          }}
+          className="flex items-center gap-2"
+        >
+          <Input
+            placeholder="Add a micro-step..."
+            className="h-8 text-sm"
+          />
+          <Button type="submit" variant="ghost" size="icon" className="h-8 w-8">
+            <Plus className="h-4 w-4" />
+            <span className="sr-only">Add micro-step</span>
+          </Button>
+        </form>
+      </div>
     </div>
   );
 

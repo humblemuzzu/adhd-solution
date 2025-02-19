@@ -5,6 +5,8 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { TaskProvider } from "@/lib/task-context";
 import { InboxProvider } from "@/lib/inbox-context";
 import { RootLayout as AppLayout } from "@/components/layout/root-layout";
+import { GamificationProvider } from "@/components/gamification/provider";
+import { FocusSessionProvider } from "@/lib/focus-session-context";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,18 +23,22 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <TaskProvider>
-            <InboxProvider>
-              <AppLayout>{children}</AppLayout>
-            </InboxProvider>
-          </TaskProvider>
-        </ThemeProvider>
+        <FocusSessionProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <TaskProvider>
+              <InboxProvider>
+                <GamificationProvider>
+                  <AppLayout>{children}</AppLayout>
+                </GamificationProvider>
+              </InboxProvider>
+            </TaskProvider>
+          </ThemeProvider>
+        </FocusSessionProvider>
       </body>
     </html>
   );
