@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { createContext, useContext, useState, type ReactNode } from "react";
+import React, { createContext, useContext, useState, type ReactNode, useCallback } from "react";
 import { useGamificationStore } from "@/lib/stores/gamification-store";
 import { useFocusSession } from "@/lib/focus-session-context";
 
@@ -9,6 +8,8 @@ export interface Task {
   id: string;
   title: string;
   completed: boolean;
+  createdAt: Date;
+  completedAt?: Date;
   isSubtask: boolean;
   parentId?: string;
   microSteps: {
@@ -18,8 +19,11 @@ export interface Task {
   }[];
 }
 
-interface TaskContextType {
+export interface TaskContextType {
   tasks: Task[];
+  completedTasks: Task[];
+  streak: number;
+  focusSessionsCompleted: number;
   addTask: (
     title: string,
     isSubtask?: boolean,
@@ -38,6 +42,7 @@ interface TaskContextType {
   deleteTask: (taskId: string) => void;
   addMicroStep: (taskId: string, title: string) => void;
   deleteMicroStep: (taskId: string, microStepId: string) => void;
+  updateTask: (id: string, updates: Partial<Task>) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -48,6 +53,7 @@ const initialTasks = [
     id: "1",
     title: "Complete project presentation",
     completed: false,
+    createdAt: new Date(),
     isSubtask: false,
     microSteps: [
       { id: "1-1", title: "Create outline", completed: false },
@@ -59,6 +65,7 @@ const initialTasks = [
     id: "2",
     title: "Review weekly goals",
     completed: false,
+    createdAt: new Date(),
     isSubtask: false,
     microSteps: [
       { id: "2-1", title: "Check completed tasks", completed: false },
@@ -77,8 +84,12 @@ export function useTaskContext() {
 
 export function TaskProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [streak, setStreak] = useState(0);
+  const [focusSessionsCompleted, setFocusSessionsCompleted] = useState(0);
   const completeTask = useGamificationStore((state) => state.completeTask);
   const { isInFocusSession } = useFocusSession();
+
+  const completedTasks = tasks.filter(task => task.completed);
 
   const addTask = (
     title: string,
@@ -90,6 +101,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       id: Date.now().toString(),
       title,
       completed: false,
+      createdAt: new Date(),
       isSubtask,
       parentId,
       microSteps,
@@ -98,25 +110,20 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     setTasks((prev) => [...prev, newTask]);
   };
 
-  const toggleTask = (taskId: string) => {
+  const toggleTask = useCallback((taskId: string) => {
+    let shouldAwardPoints = false;
+
     setTasks((prevTasks) =>
       prevTasks.map((task) => {
         if (task.id === taskId) {
           const newCompleted = !task.completed;
+          shouldAwardPoints = newCompleted; // Track if we should award points
 
-          // Award gamification points if task is being completed
-          if (newCompleted) {
-            completeTask(isInFocusSession);
-          }
-
-          // Also toggle all subtasks
           if (task.isSubtask === false) {
-            const subtaskIds = prevTasks
-              .filter((t) => t.parentId === task.id)
-              .map((t) => t.id);
             return {
               ...task,
               completed: newCompleted,
+              completedAt: newCompleted ? new Date() : undefined,
               microSteps: task.microSteps.map((step) => ({
                 ...step,
                 completed: newCompleted,
@@ -126,24 +133,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           return {
             ...task,
             completed: newCompleted,
+            completedAt: newCompleted ? new Date() : undefined,
             microSteps: task.microSteps.map((step) => ({
               ...step,
               completed: newCompleted,
             })),
           };
         }
-        // Update subtasks if parent is toggled
         if (task.parentId === taskId) {
           const newCompleted = !task.completed;
-
-          // Award gamification points if subtask is being completed
-          if (newCompleted) {
-            completeTask(isInFocusSession);
-          }
+          shouldAwardPoints = shouldAwardPoints || newCompleted;
 
           return {
             ...task,
             completed: newCompleted,
+            completedAt: newCompleted ? new Date() : undefined,
             microSteps: task.microSteps.map((step) => ({
               ...step,
               completed: newCompleted,
@@ -153,9 +157,16 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         return task;
       })
     );
-  };
 
-  const toggleMicroStep = (taskId: string, microStepId: string) => {
+    // Award points after state update
+    if (shouldAwardPoints) {
+      completeTask(isInFocusSession);
+    }
+  }, [completeTask, isInFocusSession]);
+
+  const toggleMicroStep = useCallback((taskId: string, microStepId: string) => {
+    let shouldAwardPoints = false;
+
     setTasks((prevTasks) =>
       prevTasks.map((task) => {
         if (task.id === taskId) {
@@ -166,21 +177,25 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           );
           const allCompleted = newMicroSteps.every((step) => step.completed);
 
-          // Award gamification points if all microsteps are completed
-          if (allCompleted && !task.completed) {
-            completeTask(isInFocusSession);
-          }
+          // Track if we should award points
+          shouldAwardPoints = allCompleted && !task.completed;
 
           return {
             ...task,
             completed: allCompleted,
+            completedAt: allCompleted ? new Date() : undefined,
             microSteps: newMicroSteps,
           };
         }
         return task;
       })
     );
-  };
+
+    // Award points after state update
+    if (shouldAwardPoints) {
+      completeTask(isInFocusSession);
+    }
+  }, [completeTask, isInFocusSession]);
 
   const editTask = (
     taskId: string,
@@ -276,10 +291,19 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const updateTask = (id: string, updates: Partial<Task>) => {
+    setTasks(prev =>
+      prev.map(task => (task.id === id ? { ...task, ...updates } : task))
+    );
+  };
+
   return (
     <TaskContext.Provider
       value={{
         tasks,
+        completedTasks,
+        streak,
+        focusSessionsCompleted,
         addTask,
         toggleTask,
         toggleMicroStep,
@@ -287,6 +311,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         deleteTask,
         addMicroStep,
         deleteMicroStep,
+        updateTask,
       }}
     >
       {children}

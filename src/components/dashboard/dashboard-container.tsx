@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Card } from "@/components/ui/card";
+import { useState, useRef, useEffect } from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,14 +9,37 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ProgressBar } from "./progress-bar";
 import { TaskList } from "./task-list";
 import { Plus } from "lucide-react";
 import { useTaskContext, type Task } from "@/lib/task-context";
+import { DailyProgress } from "./progress-bar";
+
+// Affirmations based on time of day
+const getTimeBasedAffirmation = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) {
+    return [
+      "Good morning, Muzammil! Ready to conquer today? ☀️",
+      "Rise and shine! Let's make today amazing 🌅",
+      "Morning, champion! Time to crush those goals 💪"
+    ];
+  } else if (hour < 17) {
+    return [
+      "Keep the momentum going, Muzammil! 🚀",
+      "You're doing great! Keep pushing forward ✨",
+      "Afternoon hustle! You've got this 💫"
+    ];
+  } else {
+    return [
+      "Evening, Muzammil! Let's finish strong 🌙",
+      "Great work today! Wrap up with confidence ⭐",
+      "Final stretch! Make it count 🎯"
+    ];
+  }
+};
 
 export function DashboardContainer() {
   const {
@@ -37,6 +60,14 @@ export function DashboardContainer() {
   const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false);
   const [newMicroSteps, setNewMicroSteps] = useState<string[]>([]);
   const [newMicroStepTitle, setNewMicroStepTitle] = useState("");
+  const [affirmation, setAffirmation] = useState<string>("");
+
+  // Handle affirmation on client-side only
+  useEffect(() => {
+    const affirmations = getTimeBasedAffirmation();
+    const randomAffirmation = affirmations[Math.floor(Math.random() * affirmations.length)];
+    setAffirmation(randomAffirmation);
+  }, []);
 
   const mainTasks = tasks.filter(task => !task.isSubtask);
 
@@ -95,166 +126,169 @@ export function DashboardContainer() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in-50 duration-500">
-      {/* Progress Section */}
-      <Card className="p-6 transition-all hover:shadow-md">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-semibold tracking-tight">Today&apos;s Progress</h2>
-          <p className="text-sm text-muted-foreground">Track your daily achievements</p>
-        </div>
-        <div className="mt-4">
-          <ProgressBar value={completedTasks} max={totalMicroSteps} />
-        </div>
+    <div className="space-y-4 sm:space-y-8 animate-in fade-in-50 duration-500">
+      <Card className="border-0 sm:border">
+        <CardHeader className="px-4 sm:px-6">
+          <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+            <div className="space-y-1">
+              <CardTitle>Today's Tasks</CardTitle>
+              <CardDescription>{affirmation}</CardDescription>
+            </div>
+            <Button
+              onClick={() => setIsAddTaskDialogOpen(true)}
+              className="w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Task
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="px-4 sm:px-6">
+          <TaskList
+            tasks={tasks}
+            onToggleTask={toggleTask}
+            onToggleMicroStep={toggleMicroStep}
+            onEditTask={(task) => {
+              setEditingTask(task);
+              setNewTaskTitle(task.title);
+              setIsSubtask(task.isSubtask);
+              setSelectedParentTask(task.parentId || "");
+              openAddTaskDialog(true);
+            }}
+            onDeleteTask={deleteTask}
+            onAddMicroStep={addMicroStep}
+            onDeleteMicroStep={deleteMicroStep}
+          />
+        </CardContent>
       </Card>
 
-      {/* Tasks Section */}
-      <Card className="p-6 transition-all hover:shadow-md">
-        <div className="flex items-center justify-between mb-6">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Today&apos;s Tasks</h2>
-            <p className="text-sm text-muted-foreground">Manage your daily tasks and subtasks</p>
-          </div>
-          <Dialog open={isAddTaskDialogOpen} onOpenChange={setIsAddTaskDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => openAddTaskDialog(false)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Task
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingTask ? "Edit Task" : "Add New Task"}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Input
-                    placeholder="Task title"
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                  />
-                </div>
-                {mainTasks.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      Is this a subtask?
-                    </label>
-                    <Select
-                      value={isSubtask ? "yes" : "no"}
-                      onValueChange={(value) => setIsSubtask(value === "yes")}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no">No</SelectItem>
-                        <SelectItem value="yes">Yes</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {isSubtask && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      Parent Task
-                    </label>
-                    <Select
-                      value={selectedParentTask}
-                      onValueChange={setSelectedParentTask}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select parent task..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mainTasks.map((task) => (
-                          <SelectItem key={task.id} value={task.id}>
-                            {task.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Micro Steps (optional)
-                  </label>
-                  <div className="space-y-2">
-                    {newMicroSteps.map((step, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <Input
-                          value={step}
-                          onChange={(e) => {
-                            const updatedSteps = [...newMicroSteps];
-                            updatedSteps[index] = e.target.value;
-                            setNewMicroSteps(updatedSteps);
-                          }}
-                        />
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => {
-                            setNewMicroSteps(newMicroSteps.filter((_, i) => i !== index));
-                          }}
-                        >
-                          <Plus className="h-4 w-4 rotate-45" />
-                        </Button>
-                      </div>
+      <Dialog open={isAddTaskDialogOpen} onOpenChange={setIsAddTaskDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] gap-0">
+          <DialogHeader className="px-6 py-4 border-b">
+            <DialogTitle>{editingTask ? "Edit Task" : "Add New Task"}</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 py-4 space-y-4">
+            <div className="space-y-3">
+              <Input
+                placeholder="Task title"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+              />
+            </div>
+            {mainTasks.length > 0 && (
+              <div className="space-y-3">
+                <label className="text-sm font-medium">
+                  Is this a subtask?
+                </label>
+                <Select
+                  value={isSubtask ? "yes" : "no"}
+                  onValueChange={(value) => setIsSubtask(value === "yes")}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">No</SelectItem>
+                    <SelectItem value="yes">Yes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {isSubtask && (
+              <div className="space-y-3">
+                <label className="text-sm font-medium">
+                  Parent Task
+                </label>
+                <Select
+                  value={selectedParentTask}
+                  onValueChange={setSelectedParentTask}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select parent task..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mainTasks.map((task) => (
+                      <SelectItem key={task.id} value={task.id}>
+                        {task.title}
+                      </SelectItem>
                     ))}
-                    <div className="flex items-center gap-2">
-                      <Input
-                        placeholder="Add a micro step..."
-                        value={newMicroStepTitle}
-                        onChange={(e) => setNewMicroStepTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && newMicroStepTitle.trim()) {
-                            setNewMicroSteps([...newMicroSteps, newMicroStepTitle.trim()]);
-                            setNewMicroStepTitle("");
-                          }
-                        }}
-                      />
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => {
-                          if (newMicroStepTitle.trim()) {
-                            setNewMicroSteps([...newMicroSteps, newMicroStepTitle.trim()]);
-                            setNewMicroStepTitle("");
-                          }
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">
+                Micro Steps (optional)
+              </label>
+              <div className="space-y-2">
+                {newMicroSteps.map((step, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={step}
+                      onChange={(e) => {
+                        const updatedSteps = [...newMicroSteps];
+                        updatedSteps[index] = e.target.value;
+                        setNewMicroSteps(updatedSteps);
+                      }}
+                    />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      onClick={() => {
+                        setNewMicroSteps(newMicroSteps.filter((_, i) => i !== index));
+                      }}
+                    >
+                      <Plus className="h-4 w-4 rotate-45" />
+                    </Button>
                   </div>
+                ))}
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Add a micro step..."
+                    value={newMicroStepTitle}
+                    onChange={(e) => setNewMicroStepTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newMicroStepTitle.trim()) {
+                        setNewMicroSteps([...newMicroSteps, newMicroStepTitle.trim()]);
+                        setNewMicroStepTitle("");
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={() => {
+                      if (newMicroStepTitle.trim()) {
+                        setNewMicroSteps([...newMicroSteps, newMicroStepTitle.trim()]);
+                        setNewMicroStepTitle("");
+                      }
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddTaskDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleAddTask}>
-                  {editingTask ? "Save Changes" : "Add Task"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-        <TaskList
-          tasks={tasks}
-          onToggleTask={toggleTask}
-          onToggleMicroStep={toggleMicroStep}
-          onEditTask={(task) => {
-            setEditingTask(task);
-            setNewTaskTitle(task.title);
-            setIsSubtask(task.isSubtask);
-            setSelectedParentTask(task.parentId || "");
-            openAddTaskDialog(true);
-          }}
-          onDeleteTask={deleteTask}
-          onAddMicroStep={addMicroStep}
-          onDeleteMicroStep={deleteMicroStep}
-        />
-      </Card>
+            </div>
+          </div>
+          <DialogFooter className="px-6 py-4 border-t">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 space-y-2 space-y-reverse sm:space-y-0 w-full">
+              <Button
+                variant="outline"
+                onClick={() => setIsAddTaskDialogOpen(false)}
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddTask}
+                className="w-full sm:w-auto"
+              >
+                {editingTask ? "Save Changes" : "Add Task"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 
