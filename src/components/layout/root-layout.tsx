@@ -72,9 +72,11 @@ export function RootLayout({ children }: RootLayoutProps) {
         return <DashboardContainer />;
       case "brain-dump":
         return (
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="flex h-full w-full">
             <BrainDump />
-            <Inbox />
+            <div className="flex-1">
+              <Inbox />
+            </div>
           </div>
         );
       case "timer":
@@ -85,7 +87,7 @@ export function RootLayout({ children }: RootLayoutProps) {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-background to-muted/20 overflow-hidden">
+    <div className="flex h-screen w-screen overflow-hidden">
       {/* Mobile Menu Button */}
       <Button
         variant="ghost"
@@ -199,15 +201,23 @@ export function RootLayout({ children }: RootLayoutProps) {
         "flex-1 flex flex-col min-h-0",
         isMobile.current && "w-full"
       )}>
-        <div className="flex-1 overflow-auto -mb-[57px] pb-[57px]">
-          <div className="h-full p-4 md:p-8 pt-16 md:pt-8">
+        <div className={cn(
+          "flex-1 overflow-auto",
+          currentView === "tasks" && "px-4 md:px-8"
+        )}>
+          <div className={cn(
+            currentView === "tasks" && "max-w-3xl mx-auto pt-16 md:pt-8"
+          )}>
             {renderContent()}
           </div>
         </div>
 
         {/* Combined Progress Bar */}
         <div className="border-t border-border/40 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container mx-auto px-4 py-4 md:px-8">
+          <div className={cn(
+            "mx-auto px-4 py-4",
+            currentView === "tasks" && "container max-w-3xl"
+          )}>
             <div className="combined-progress">
               <CombinedProgress />
             </div>

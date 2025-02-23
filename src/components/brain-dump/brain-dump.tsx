@@ -1,15 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Plus, ArrowRight } from "lucide-react";
+import { Plus, ArrowRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useInbox } from "@/lib/inbox-context";
@@ -34,42 +27,34 @@ export function BrainDump({ className }: BrainDumpProps) {
   };
 
   return (
-    <Card className={cn("w-full transition-all", className)}>
-      <CardHeader className="pb-3">
-        <CardTitle>Brain Dump</CardTitle>
-        <CardDescription>
-          Quickly capture your thoughts before they slip away
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div
-            className={cn(
-              "flex items-center gap-2 transition-all",
-              isExpanded ? "flex-col" : "flex-row"
-            )}
+    <div className="w-[280px] min-w-[280px] h-full flex flex-col p-4 border-r bg-muted/5">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold">My Notes</h2>
+      </div>
+
+      {/* Modern Add Note Button/Input */}
+      <div className="relative">
+        {!isExpanded ? (
+          <button
+            onClick={() => {
+              setIsExpanded(true);
+              setTimeout(() => inputRef.current?.focus(), 100);
+            }}
+            className="w-full text-left px-4 py-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors text-muted-foreground flex items-center gap-2 group"
           >
-            {!isExpanded ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-start text-muted-foreground"
-                onClick={() => {
-                  setIsExpanded(true);
-                  setTimeout(() => inputRef.current?.focus(), 100);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Capture a thought...
-              </Button>
-            ) : (
-              <>
+            <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+            <span className="group-hover:text-foreground transition-colors">Add new note</span>
+          </button>
+        ) : (
+          <div className="rounded-lg border bg-card shadow-lg">
+            <form onSubmit={handleSubmit}>
+              <div className="p-3">
                 <Input
                   ref={inputRef}
                   placeholder="What's on your mind?"
                   value={thought}
                   onChange={(e) => setThought(e.target.value)}
-                  className="w-full"
+                  className="border-none bg-transparent px-0 text-lg focus-visible:ring-0 placeholder:text-muted-foreground/50"
                   onKeyDown={(e) => {
                     if (e.key === "Escape") {
                       setIsExpanded(false);
@@ -77,32 +62,31 @@ export function BrainDump({ className }: BrainDumpProps) {
                     }
                   }}
                 />
-                <div className="flex w-full gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => {
-                      setIsExpanded(false);
-                      setThought("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1"
-                    disabled={!thought.trim()}
-                  >
-                    <ArrowRight className="mr-2 h-4 w-4" />
-                    Save
-                  </Button>
-                </div>
-              </>
-            )}
+              </div>
+              <div className="border-t p-3 flex justify-end gap-2 bg-muted/50">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setIsExpanded(false);
+                    setThought("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!thought.trim()}
+                >
+                  Save
+                </Button>
+              </div>
+            </form>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+        )}
+      </div>
+    </div>
   );
 } 
